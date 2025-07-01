@@ -1,43 +1,34 @@
-const axios = require("axios");
+const { google } = require("googleapis");
 
 module.exports = async (req, res) => {
-  const { sheetid } = req.query;
+  if (req.method !== "POST") return res.status(405).json({ error: "Only POST allowed" });
 
-  if (!sheetid) {
-    return res.status(400).json({ error: "sheetid parameter is required" });
-  }
+  const sheetId = req.query.sheetid;
+  if (!sheetId) return res.status(400).json({ error: "sheetid parameter is required" });
 
-  const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&nocache=${Date.now()}`;
+  const body = req.body;
 
   try {
-    const response = await axios.get(url);
-    const match = response.data.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/);
-
-    if (!match) {
-      return res.status(500).json({ error: "Invalid sheet response. Make sure headers exist and it's published." });
-    }
-
-    const json = JSON.parse(match[1]);
-    const rows = json.table.rows;
-
-    // Step 1: First row is treated as header
-    const headerRow = rows[0].c.map(cell => (cell && cell.v ? cell.v : `Column_${Math.random().toString(36).substring(2, 6)}`));
-
-    // Step 2: Remaining rows are data
-    const dataRows = rows.slice(1);
-
-    const result = dataRows.map(row => {
-      const obj = {};
-      row.c.forEach((cell, i) => {
-        const key = headerRow[i];
-        const value = cell && cell.v !== null ? cell.v : null;
-        obj[key] = value;
-      });
-      return obj;
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    return res.status(200).json(result);
+    const sheets = google.sheets({ version: "v4", auth });
+    const values = [Object.values(body)];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Sheet1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+
+    return res.status(200).json({ success: true, added: body });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to fetch data", details: err.message });
+    return res.status(500).json({ error: "Failed to add data", details: err.message });
   }
 };
