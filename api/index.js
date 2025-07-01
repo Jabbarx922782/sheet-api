@@ -4,7 +4,8 @@ module.exports = async (req, res) => {
   const { sheetid } = req.query;
   if (!sheetid) return res.status(400).json({ error: "sheetid parameter is required" });
 
-  const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json`;
+  const now = Date.now(); // cache-busting
+  const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&cacheBust=${now}`;
 
   try {
     const response = await axios.get(url);
@@ -12,22 +13,16 @@ module.exports = async (req, res) => {
     if (!match) return res.status(500).json({ error: "Invalid sheet response." });
 
     const json = JSON.parse(match[1]);
-    const rows = json.table.rows;
+    const headers = json.table.cols.map(col => col.label);
+    const rows = json.table.rows.map(row => {
+      const obj = {};
+      row.c.forEach((cell, i) => {
+        obj[headers[i]] = cell ? cell.v : null;
+      });
+      return obj;
+    });
 
-    const output = [];
-
-    // যদি 1st row header হয় তাহলে i = 1, না হলে i = 0
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const cells = row.c;
-      if (cells && cells[0] && cells[1]) {
-        const key = cells[0].v;
-        const value = cells[1].v;
-        output.push({ [key]: value });
-      }
-    }
-
-    return res.status(200).json(output);
+    return res.status(200).json(rows);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch data", details: err.message });
   }
