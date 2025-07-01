@@ -21,14 +21,16 @@ module.exports = async (req, res) => {
     const headers = json.table.cols.map(col => col.label);
     const rows = json.table.rows;
 
-    const result = rows.map(row => {
-      const obj = {};
+    const result = [];
+
+    rows.forEach(row => {
       row.c.forEach((cell, i) => {
-        if (headers[i]) {
-          obj[headers[i]] = cell && cell.v !== null ? cell.v : null;
+        const key = headers[i];
+        const value = cell && cell.v !== null ? cell.v : null;
+        if (key && value !== null) {
+          result.push({ [key]: value });
         }
       });
-      return obj;
     });
 
     return res.status(200).json(result);
