@@ -7,7 +7,8 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "sheetid parameter is required" });
   }
 
-  const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&cacheBust=${Date.now()}`;
+  // cache bust to avoid stale data
+  const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&nocache=${Date.now()}`;
 
   try {
     const response = await axios.get(url);
