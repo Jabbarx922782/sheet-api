@@ -22,24 +22,23 @@ module.exports = async (req, res) => {
     const match = response.data.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/);
 
     if (!match) {
-      return res.status(500).json({ error: "Invalid sheet response. Make sure it's published and first row has headers." });
+      return res.status(500).json({ error: "Invalid sheet response. Make sure it's published to the web." });
     }
 
     const json = JSON.parse(match[1]);
+    const cols = json.table.cols.map(col => col.label); // Header: 1st row
 
-    // Headers (Keys) – প্রথম row থেকে
-    const headers = json.table.cols.map(col => col.label || `Column_${col.id}`);
-
-    // Rows → key-value format
-    const rows = json.table.rows.map(row => {
-      const obj = {};
-      row.c.forEach((cell, i) => {
-        obj[headers[i]] = cell ? cell.v : null;
+    const rows = json.table.rows
+      .filter(row => row.c) // Remove empty rows
+      .map(row => {
+        const obj = {};
+        row.c.forEach((cell, i) => {
+          obj[cols[i]] = cell && cell.v !== undefined ? cell.v : null;
+        });
+        return obj;
       });
-      return obj;
-    });
 
-    // Set Cache
+    // Cache Save
     cache[sheetid] = {
       time: Date.now(),
       data: rows
