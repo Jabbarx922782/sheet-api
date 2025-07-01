@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "sheetid parameter is required" });
   }
 
-  const now = Date.now(); // cache bust
+  const now = Date.now();
   const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&cacheBust=${now}`;
 
   try {
@@ -17,13 +17,13 @@ module.exports = async (req, res) => {
     }
 
     const json = JSON.parse(match[1]);
+
     const headers = json.table.cols.map(col => col.label);
     const rows = json.table.rows;
 
     const output = {};
 
-    // initialize arrays for each header
-    headers.forEach(header => {
+    headers.forEach((header, i) => {
       if (header) output[header] = [];
     });
 
