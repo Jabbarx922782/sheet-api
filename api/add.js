@@ -1,28 +1,45 @@
-const { GoogleSpreadsheet } = require('google-spreadsheet');
+const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: "Only POST method allowed" });
+    return res.status(405).json({ error: 'Only POST method is allowed' });
   }
 
-  const { sheetid } = req.query;
-  if (!sheetid) return res.status(400).json({ error: "sheetid required" });
+  const sheetId = req.query.sheetid;
+  if (!sheetId) {
+    return res.status(400).json({ error: 'sheetid parameter is required' });
+  }
 
-  const creds = {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  };
+  const bodyData = req.body;
+  if (!bodyData || typeof bodyData !== 'object') {
+    return res.status(400).json({ error: 'Invalid or empty request body' });
+  }
 
   try {
-    const doc = new GoogleSpreadsheet(sheetid);
-    await doc.useServiceAccountAuth(creds);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
+    // Auth with service account
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
 
-    await sheet.addRow(req.body);
+    const sheets = google.sheets({ version: 'v4', auth });
+    const values = Object.values(bodyData);
 
-    res.status(200).json({ success: true, message: "Row added", data: req.body });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to add row", details: error.message });
+    // Append row
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: 'Sheet1', // or your sheet name
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [values],
+      },
+    });
+
+    res.status(200).json({ success: true, message: 'Row added', data: bodyData });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add data', details: err.message });
   }
 };
