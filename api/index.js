@@ -7,7 +7,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "sheetid parameter is required" });
   }
 
-  // cache bust to avoid stale data
   const url = `https://docs.google.com/spreadsheets/d/${sheetid}/gviz/tq?tqx=out:json&nocache=${Date.now()}`;
 
   try {
@@ -22,16 +21,14 @@ module.exports = async (req, res) => {
     const headers = json.table.cols.map(col => col.label);
     const rows = json.table.rows;
 
-    const result = [];
-
-    rows.forEach(row => {
+    const result = rows.map(row => {
+      const obj = {};
       row.c.forEach((cell, i) => {
         const key = headers[i];
         const value = cell && cell.v !== null ? cell.v : null;
-        if (key && value !== null) {
-          result.push({ [key]: value });
-        }
+        obj[key] = value;
       });
+      return obj;
     });
 
     return res.status(200).json(result);
