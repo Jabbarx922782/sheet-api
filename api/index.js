@@ -16,14 +16,16 @@ module.exports = async (req, res) => {
 
     const output = [];
 
-    rows.forEach(row => {
+    // যদি 1st row header হয় তাহলে i = 1, না হলে i = 0
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
       const cells = row.c;
       if (cells && cells[0] && cells[1]) {
         const key = cells[0].v;
         const value = cells[1].v;
         output.push({ [key]: value });
       }
-    });
+    }
 
     return res.status(200).json(output);
   } catch (err) {
