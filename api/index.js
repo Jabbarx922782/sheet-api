@@ -18,13 +18,18 @@ module.exports = async (req, res) => {
     }
 
     const json = JSON.parse(match[1]);
-    const headers = json.table.cols.map(col => col.label || `Column_${Math.random().toString(36).substring(2, 6)}`);
     const rows = json.table.rows;
 
-    const result = rows.map(row => {
+    // Step 1: First row is treated as header
+    const headerRow = rows[0].c.map(cell => (cell && cell.v ? cell.v : `Column_${Math.random().toString(36).substring(2, 6)}`));
+
+    // Step 2: Remaining rows are data
+    const dataRows = rows.slice(1);
+
+    const result = dataRows.map(row => {
       const obj = {};
       row.c.forEach((cell, i) => {
-        const key = headers[i] || `Column_${i}`;
+        const key = headerRow[i];
         const value = cell && cell.v !== null ? cell.v : null;
         obj[key] = value;
       });
