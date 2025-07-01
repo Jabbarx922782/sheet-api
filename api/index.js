@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 let cache = {};
-const CACHE_TIME = 5 * 60 * 1000; // 5 মিনিট
+const CACHE_TIME = 5 * 60 * 1000; // ৫ মিনিট
 
 module.exports = async (req, res) => {
   const { sheetid } = req.query;
@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "sheetid parameter is required" });
   }
 
-  // Cache Check
+  // Cache চেক
   if (cache[sheetid] && (Date.now() - cache[sheetid].time < CACHE_TIME)) {
     return res.status(200).json(cache[sheetid].data);
   }
@@ -26,25 +26,26 @@ module.exports = async (req, res) => {
     }
 
     const json = JSON.parse(match[1]);
-    const cols = json.table.cols.map(col => col.label); // Header: 1st row
+    const rows = json.table.rows;
 
-    const rows = json.table.rows
-      .filter(row => row.c) // Remove empty rows
-      .map(row => {
-        const obj = {};
-        row.c.forEach((cell, i) => {
-          obj[cols[i]] = cell && cell.v !== undefined ? cell.v : null;
-        });
-        return obj;
-      });
+    const result = {};
+
+    rows.forEach(row => {
+      const cells = row.c;
+      if (cells && cells[0] && cells[1]) {
+        const key = cells[0].v;
+        const value = cells[1].v;
+        result[key] = value;
+      }
+    });
 
     // Cache Save
     cache[sheetid] = {
       time: Date.now(),
-      data: rows
+      data: result
     };
 
-    return res.status(200).json(rows);
+    return res.status(200).json(result);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch data", details: err.message });
   }
